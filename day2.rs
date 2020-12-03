@@ -37,23 +37,12 @@ fn parse_password(line: &str) -> Password {
 
 fn valid_count(line: &str) -> bool {
     let p = parse_password(line);
-    let mut count = 0;
-    for x in p.pwd.chars() {
-        if x == p.c {
-            count += 1;
-        }
-    }
+    let count = p.pwd.chars().filter(|x| x == &p.c).count() as i32;
     p.low <= count && count <= p.high
 }
 
 fn num_valid(lines: std::io::Lines<io::BufReader<std::fs::File>>, is_valid: &dyn Fn(&str) -> bool) -> i32 {
-    let mut valid = 0;
-    for l in lines {
-        if is_valid(&l.unwrap()) {
-            valid += 1;
-        }
-    }
-    valid
+    lines.filter(|line| is_valid(line.as_ref().unwrap())).count() as i32
 }
 
 fn valid_position(line: &str) -> bool {
