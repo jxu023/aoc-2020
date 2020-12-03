@@ -65,10 +65,11 @@ fn valid_position(line: &str) -> bool {
 }
 
 fn main() {
-    let example_lines = get_lines("example.input");
-    println!("{}", num_valid(example_lines, &valid_count));
-    let problem_lines = get_lines("problem.input");
-    println!("{}", num_valid(problem_lines, &valid_count));
-    let problem_lines = get_lines("problem.input");
-    println!("{}", num_valid(problem_lines, &valid_position));
+    type BoolFn = fn(&str) -> bool;
+    for (filename, is_valid) in vec![("example.input", valid_count as BoolFn),
+                                     ("problem.input", valid_count as BoolFn),
+                                     ("problem.input", valid_position as BoolFn)] {
+        let example_lines = get_lines(filename);
+        println!("{}", num_valid(example_lines, &is_valid));
+    }
 }
