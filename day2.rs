@@ -46,16 +46,6 @@ fn valid_count(line: &str) -> bool {
     p.low <= count && count <= p.high
 }
 
-fn num_valid_count(lines: std::io::Lines<io::BufReader<std::fs::File>>) -> i32 {
-    let mut num_valid = 0;
-    for l in lines {
-        if valid_count(&l.unwrap()) {
-            num_valid += 1;
-        }
-    }
-    num_valid
-}
-
 fn num_valid(lines: std::io::Lines<io::BufReader<std::fs::File>>, is_valid: &dyn Fn(&str) -> bool) -> i32 {
     let mut valid = 0;
     for l in lines {
@@ -76,9 +66,9 @@ fn valid_position(line: &str) -> bool {
 
 fn main() {
     let example_lines = get_lines("example.input");
-    println!("{}", num_valid_count(example_lines));
+    println!("{}", num_valid(example_lines, &valid_count));
     let problem_lines = get_lines("problem.input");
-    println!("{}", num_valid_count(problem_lines));
+    println!("{}", num_valid(problem_lines, &valid_count));
     let problem_lines = get_lines("problem.input");
     println!("{}", num_valid(problem_lines, &valid_position));
 }
