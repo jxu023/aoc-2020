@@ -2,3 +2,8 @@ example.input
 problem.input
 *.swp
 a.out
+
+
+# Added by cargo
+
+/target

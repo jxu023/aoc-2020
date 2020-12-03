@@ -1,14 +1,14 @@
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::path::Path;
 use std::io::{self, BufRead};
+use std::path::Path;
 use std::vec::Vec;
-use std::collections::{HashSet, HashMap};
 
 fn read_file(filename: &str) -> Result<Vec<i32>, std::io::Error> {
     let path = Path::new(&filename);
     let file = File::open(path)?;
     let lines = io::BufReader::new(file).lines();
-    
+
     let mut nums = Vec::new();
     for line in lines {
         if let Ok(l) = line {
@@ -24,7 +24,7 @@ fn two_sum(nums: &[i32], sum: i32) -> (i32, i32) {
     for &x in nums {
         let y = sum - x;
         if prev_nums.contains(&y) {
-            return (x, y)
+            return (x, y);
         }
         prev_nums.insert(x);
     }
@@ -45,7 +45,7 @@ fn three_sum(nums: &[i32], sum: i32) -> (i32, i32, i32) {
             let min_count = 1 + ((x == z) as i32) + ((y == z) as i32);
             if let Some(count) = all_nums.get(&z) {
                 if *count >= min_count {
-                    return (x, y, z)
+                    return (x, y, z);
                 }
             }
         }
@@ -57,8 +57,16 @@ fn three_sum(nums: &[i32], sum: i32) -> (i32, i32, i32) {
 fn main() {
     let nums = read_file("day1.input").unwrap();
     let (x, y) = two_sum(&nums, 2020);
-    println!("two_sum has result of {:?}, their product is {}", (x, y), x*y);
+    println!(
+        "two_sum has result of {:?}, their product is {}",
+        (x, y),
+        x * y
+    );
 
     let (x, y, z) = three_sum(&nums, 2020);
-    println!("three_sum has result of {:?}, their product is {}", (x, y, z), x*y*z);
+    println!(
+        "three_sum has result of {:?}, their product is {}",
+        (x, y, z),
+        x * y * z
+    );
 }
