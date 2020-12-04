@@ -36,13 +36,12 @@ fn parse_password(line: &str) -> Result<Password> {
     let mid = iter.next().ok_or("failed to parse mid")?;
     let pwd = iter.next().ok_or("failed to parse pwd")?;
 
-    let p = Password {
+    Ok(Password {
         low,
         high,
         c: mid.chars().nth(0).ok_or("mid is empty")?,
         pwd: pwd.to_string(),
-    };
-    Ok(p)
+    })
 }
 
 fn valid_count(line: &str) -> Result<bool> {
@@ -54,7 +53,8 @@ fn valid_count(line: &str) -> Result<bool> {
 type BoolFn = fn(&str) -> Result<bool>;
 
 fn num_valid(lines: std::io::Lines<io::BufReader<std::fs::File>>, is_valid: BoolFn) -> Result<i32> {
-    let results: Result<Vec<_>> = lines.map(|line| is_valid(&line?)).collect();
+    let results: Result<Vec<Bool>> = lines.map(|line| is_valid(&line?)).collect();
+    results + 123;
     Ok(results?.iter().filter(|x| **x).count() as i32)
 }
 
