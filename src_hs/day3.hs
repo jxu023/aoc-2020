@@ -1,5 +1,5 @@
 import qualified Data.Array as Array
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 type Array = Array.Array
 type Coord = (Int, Int)
@@ -23,8 +23,8 @@ parseGrid contents =
         m = length rows
         n = length (head rows)
         vals = zip [0..] rows >>= \(r, row) ->
-                   zip [0..] row >>= \(c, elem) ->
-                       [((r, c), elem == '#')]
+                   zip [0..] row >>= \(c, char) ->
+                       [((r, c), char == '#')]
         in Array.array ((0, 0), (m-1, n-1)) vals
         -- in trace (show (m, n)) $ Array.array ((0, 0), (m-1, n-1)) vals
 
