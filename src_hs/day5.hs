@@ -12,7 +12,6 @@ data SeatRange = SeatRange { minRow :: Int
 
 mid l r = l + ((r - l) `div` 2)
 
-
 decodeSeat :: String -> (Int, Int)
 decodeSeat str = fromSr . foldl' f (SeatRange 0 127 0 7) $ str
     where f sr 'F' = sr { maxRow = mid (minRow sr) (maxRow sr) }
