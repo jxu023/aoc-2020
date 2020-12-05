@@ -7,3 +7,4 @@ a.out
 # Added by cargo
 
 /target
+batch.input
