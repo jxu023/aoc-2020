@@ -43,6 +43,9 @@ data VisitedBags = VisitedBags { vsSeen :: Set Bag
                                , vsTarget :: Set Bag -- bags that contain the target
                                }
 
+getChildren :: Bag -> Rules -> [(Bag, Int)]
+getChildren root = Map.toList . Map.findWithDefault Map.empty root
+
 -- TODO can I use State monad to simplify?
 findTarget :: Bag -> Rules -> Set Bag
 findTarget target rules = vsTarget visitAll
@@ -55,7 +58,7 @@ findTarget target rules = vsTarget visitAll
               | root == target || Set.member root vst = addPath path vb
               | Set.member root vss = vb
               | otherwise = let vss' = Set.insert root vss
-                                children = Map.keys $ Map.findWithDefault Map.empty root rules
+                                children = map fst $ getChildren root rules
                                 in foldr (visit (root:path)) (vb { vsSeen = vss' }) children
 
           addPath path vb@(VisitedBags _ vst) = vb { vsTarget = foldr Set.insert vst newOnPath }
@@ -64,18 +67,22 @@ findTarget target rules = vsTarget visitAll
 bagsContaining :: Bag -> String -> Int
 bagsContaining bag contents = Set.size $ findTarget bag (parseRules contents)
 
--- TODO can I use State monad to simplify?
 bagsContainedIn :: Bag -> String -> Int
 bagsContainedIn bag contents =
     let rules = parseRules contents
-        dfs root visited | Map.member root visited = visited
-                         | otherwise = let childMap = foldr dfs visited children
-                                           children = Map.keys $ Map.findWithDefault Map.empty root rules
-                                           childBags = map (childMap Map.!) children
-                                           coeffs = map ((rules Map.! root) Map.!) children
-                                           total = (+1) . sum $ zipWith (*) coeffs childBags
-                                           in Map.insert root total childMap
-        in (+ (-1)) . (Map.! bag) $ dfs bag Map.empty
+        dfs :: Bag -> State (Map Bag Int) Int
+        dfs root = do
+            cache <- get
+            case Map.lookup root cache of
+                 Just val -> return val
+                 Nothing -> do
+                     let addChild total (child, coeff) = do { x <- dfs child; return (x*coeff + total); }
+                     total <- foldM addChild 1 (getChildren root rules)
+                     cache <- get
+                     put (Map.insert root total cache)
+                     return total
+        in (+ (-1)) . evalState (dfs bag) $ Map.empty
+        -- in (+ (-1)) . fst . (\x -> trace ("state: " ++ show x) x) . runState (dfs bag) $ Map.empty
 
 main :: IO()
 main = do
