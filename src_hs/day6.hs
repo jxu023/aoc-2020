@@ -3,7 +3,7 @@ import qualified Data.Array as Array
 type Array = Array.Array
 
 splitOn :: Eq a => a -> [a] -> [[a]]
-splitOn x = (\(w, ws) -> w:ws) . foldr f ([], [])
+splitOn x = uncurry (:) . foldr f ([], [])
     where f c (w, ws) = if c /= x then (c:w, ws)
                                   else ([], w:ws)
 
@@ -25,7 +25,7 @@ addAnswer c ga@(GroupAnswer _ seen) =
         in ga { gaAnswerCount = seen Array.// [(ind, prevCount + 1)] }
 
 addPerson :: Person -> GroupAnswer -> GroupAnswer
-addPerson p ga@(GroupAnswer num _) = incrementPeople . foldr addAnswer ga $ p
+addPerson p ga@(GroupAnswer _ _) = incrementPeople . foldr addAnswer ga $ p
     where incrementPeople x = x { gaNumPeople = (gaNumPeople x) + 1}
 
 countAnswered :: GroupAnswer -> Int
