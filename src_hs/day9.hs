@@ -1,6 +1,8 @@
 import qualified Data.Map.Strict as Map
 import Data.List (scanl')
 import qualified Data.Sequence as Seq
+import Debug.Trace (trace)
+import Data.Foldable (toList)
 
 type Map = Map.Map
 type Seq = Seq.Seq
@@ -24,7 +26,6 @@ decrementFreq = Map.update minusOne
 data Preamble = Preamble { pCount :: Map Int Int
                          , pQueue :: Seq Int
                          } deriving (Show)
-
 initPreamble :: [Int] -> Preamble
 initPreamble xs = Preamble (foldr incrementFreq Map.empty xs)
                            (Seq.fromList xs)
@@ -49,6 +50,44 @@ firstNonPreamble2Sum preambleLen numStream =
 parseNums :: String -> [Int]
 parseNums = map (read :: String -> Int) . lines
 
+-- P2 Start --
+data Range = Range { rNums :: Seq Int
+                   , rTotal :: Int
+                   } deriving (Show)
+
+pushNum :: Int -> Range -> Range
+pushNum x (Range nums total) = Range (nums Seq.|> x) (total + x)
+
+popNum :: Range -> Range
+popNum (Range nums total) = let x = Seq.index nums 0
+                                in Range (Seq.drop 1 nums) (total - x)
+
+goalRange :: Int -> Range -> Bool
+goalRange target range = rTotal range == target && Seq.length (rNums range) > 1
+
+findRangeSumTarget :: Int -> Range -> [Int] -> Maybe Range
+findRangeSumTarget target range [] = if goalRange target range then Just range
+                                                               else Nothing
+
+findRangeSumTarget target range (x:xs)
+    | goalRange target range = trace (show range ) $ Just range
+    | rTotal range > target = trace (show range ) $ findRangeSumTarget target (popNum range) (x:xs)
+    | otherwise = trace (show range ) $ findRangeSumTarget target (pushNum x range) xs
+
+initRange :: Range
+initRange = Range Seq.empty 0
+
+solveP2 :: Int -> [Int] -> Int
+solveP2 pl nums =
+    let target = firstNonPreamble2Sum pl nums
+        range = case findRangeSumTarget target initRange nums of Just r -> toList $ rNums r
+                                                                 Nothing -> error "no range found"
+        x = head range
+        minX = foldr min x (tail range)
+        maxX = foldr max x (tail range)
+        in minX + maxX
+-- P2 End --
+
 main :: IO ()
 main = do
     print "hi"
@@ -56,7 +95,14 @@ main = do
     example <- readFile "../example.input"
     batch <- readFile "../batch.input"
 
-    print $ firstNonPreamble2Sum 5 (parseNums example)
-    print $ firstNonPreamble2Sum 25 (parseNums batch)
+    let exampleNums = parseNums example
+    let batchNums = parseNums batch
+
+    print $ firstNonPreamble2Sum 5 exampleNums
+    print $ firstNonPreamble2Sum 25 batchNums
+
+    print $ solveP2 5 exampleNums
+    print $ solveP2 25 batchNums
+
 
     print "bye"
