@@ -1,12 +1,15 @@
+import Data.Foldable (foldl')
+import qualified Data.Array as Array
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
 import Debug.Trace (trace)
+import Data.List (sort)
 
 type Set = Set.Set
 type Map = Map.Map
 
--- TODO memoize
+-- stil too slow! memoization too slow also! trillions! D=
 findChainWithCond :: (Int -> Set Int -> Bool) -> Int -> Set Int -> [[Int]]
 findChainWithCond cond = findChain
     where findChain cur bag = if cond cur bag then [[cur]] else do
@@ -30,11 +33,18 @@ solveP1 nums = do
     let getFreq key = Map.findWithDefault 0 key freq
     return $ getFreq 1 * getFreq 3
 
+-- dynamic programming to the rescue
 solveP2 :: [Int] -> Int
 solveP2 nums =
-    let numSet = Set.fromList nums
-        maxNum = Set.findMax numSet
-        in length $ findChainWithCond (\val _ -> val == maxNum) 0 (Set.insert (maxNum + 3) numSet)
+    let bag = Set.insert 0 $ Set.fromList nums
+        maxNum = Set.findMax bag
+        target = maxNum + 3
+        initArr = Array.listArray (0, target) (1: repeat 0)
+        addEdges arr from = foldl' addNum arr [from+1, from+2, from+3]
+            where addNum arr v = if Set.member from bag
+                                    then arr Array.// [(v, arr Array.! v + arr Array.! from)]
+                                    else arr
+        in (Array.! target) $ foldl' addEdges initArr [0..target]
 
 main :: IO ()
 main = do
