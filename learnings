@@ -1,0 +1,58 @@
+********************************************************************************
+Monad is an interface providing the bind operator whose purpose is to compose
+functions.
+
+f . g is normal fn composition
+
+g >>= f is monadic fn composition (the fns produce a value implementing the
+monad)
+
+within this composition, monad provides an "execution context".
+It's essentially a way of simplifying code.
+This context's meaning varies depending on the specific monad.
+
+The Maybe monad binds/chains functions producing maybe values s.t. if any of
+them produce a Nothing value, then they all do.  This simplifies over nested if
+else statements doing early return.
+
+The State monad binds/chains functions that consume state and produce a
+modified state alongside some result value.  This simplifies over passing state
+between a number of functions that all have state as input and produce a
+modified state.
+
+The List monad binds/chains functions that produce a list of values, s.t. the
+simplified code looks like it's only dealing with one value at a time. But,
+then the result will be a large list of values that take into account all
+permutations.
+The simplified code looks like the inside body of what could be a deeply nested for loop.
+********************************************************************************
+If your recursive function is passing constant values to itself, consider wrapping
+it in a closure to hold the constant instead of repetitively passing it.
+********************************************************************************
+When solving problems, separate your problem solving from the technical aspects of the code.
+This is especially helpful for unfamiliar languages where considering them at the same time
+can be detrimental.
+
+Separating abstract problem solving from translation to code will help keep you
+more focused.  For people using python or their own familiar language, it can
+be direct.
+
+But, I don't believe any particular language provides the optimal language to
+think about problem solving in general. That would be a very good coincidence
+if Python happened to reflect the perfect language for problem solving in the
+human brain. Thus, I believe it's still good to separte these steps, perhaps by
+creating your own set of paper pencil notation with free-form
+drawing/diagramming. Perhaps this somewhat explains the draw of APL languages.
+********************************************************************************
+Fun problems are those that can be easily held within my head. Getting significant work
+done with limited stress means there's a necessity to break the problem down until
+it's in small enough individual pieces which can each easily hold within my head.
+
+For some people, that's the ideal size of a function. Thus the size of a
+function can and perhaps should vary from person to person for individual
+codebases.
+
+The size of a problem that can be easily held in the head is not just a
+function of their mental hardware, but also a function of mental
+abstractions/tools they have at hand.
+********************************************************************************
