@@ -3,8 +3,6 @@ import qualified Data.Array as Array
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
-import Debug.Trace (trace)
-import Data.List (sort)
 
 type Set = Set.Set
 type Map = Map.Map
