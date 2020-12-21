@@ -35,5 +35,7 @@ main = do
 
     print $ solveP1 example 2020
     print $ solveP1 batch 2020
+
+    -- TODO use ST somehow to make this finish faster than 1m7s...
     print $ solveP1 batch 30000000
     print "bye"
