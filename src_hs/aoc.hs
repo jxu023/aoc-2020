@@ -6,7 +6,7 @@ type Map = Map.Map
 
 main :: IO()
 main = do
-    print "hi"
+    putStrLn "hi"
     example <- readFile "../example.input"
     batch <- readFile "../batch.input"
-    print "bye"
+    putStrLn "bye"
