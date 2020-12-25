@@ -2,6 +2,9 @@ import Debug.Trace
 import Data.Maybe (fromJust, mapMaybe)
 import qualified Data.Map as Map
 import Data.Bifunctor (second)
+import Data.List (find, isInfixOf)
+import qualified Data.Array as Array
+import qualified Data.Set as Set
 
 type Map = Map.Map
 
@@ -60,7 +63,7 @@ parseContents contents =
         in (parseRules rs, parseTicket (head $ tail t), map parseTicket (tail ts))
 
 parseTicket :: String -> Ticket
-parseTicket = map read . splitOn ',' 
+parseTicket = map read . splitOn ','
 
 splitOn :: Eq a => a -> [a] -> [[a]]
 splitOn c = filter (not . null) . uncurry (:) . foldr f ([], [])
@@ -76,18 +79,45 @@ parseRules = Map.fromList . map parseLine
                         . filter (/= "or")
                         $ words rs
 
--- ticket is invalid for any possible range
-invalidTicket :: Ticket -> Ranges -> [Int]
-invalidTicket ts ranges = filter (\x -> not $ inRanges x ranges) ts
-
--- compose the solution
 solveP1 :: String -> Int
 solveP1 contents =
     let (rules, _myTicket, nearbyTickets) = parseContents contents
         allRanges = foldr unionRanges Map.empty $ Map.elems rules
-        in sum
-            . concatMap (`invalidTicket` allRanges)
-            $ nearbyTickets
+        in sum . concatMap (filter (not . (`inRanges` allRanges))) $ nearbyTickets
+
+-- ... do a top down skeleton development .. i forgot again
+-- TODO use elimd as state during execution
+eliminatePossibs :: [[String]] -> [[String]]
+eliminatePossibs strs =
+    let eliminate str = map (addIfEmpty str . filter (/= str))
+        addIfEmpty str xs | null xs = [str]
+                          | otherwise = xs
+        findSingle elimd = fromJust . find (\xs -> case xs of (x:[]) -> not (Set.member x elimd); _ -> False)
+        elimSingle strs = flip eliminate strs . findSingle $ strs :: [[String]]
+        strs' = elimSingle strs :: [[String]]
+        in if strs' == strs then strs else eliminatePossibs strs'
+
+identifyFields :: Rules -> [Ticket] -> [String]
+identifyFields rules tickets =
+    let grid = Array.listArray ((0, 0), (lastTicket, lastField)) (concat tickets)
+        lastTicket = length tickets - 1
+        lastField = length (head tickets) - 1
+        findField :: Int -> [String]
+        findField col = filter allValid (Map.keys rules)
+            where allValid k = all (`inRanges` (rules Map.! k)) vals
+                  vals = [grid Array.! (r, col) | r <- [0..lastTicket]]
+        in concat . eliminatePossibs $ map findField [0..lastField]
+
+solveP2 :: String -> Int
+solveP2 contents =
+    let (rules, myTicket, nearbyTickets) = parseContents contents
+        allRanges = foldr unionRanges Map.empty $ Map.elems rules
+        validTickets = filter (all (`inRanges` allRanges)) nearbyTickets
+        departures = map fst
+            . filter ((`isInfixOf` "departure") . snd)
+            . zip [0..]
+            $ identifyFields rules validTickets
+        in product $ map (myTicket !!) departures
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
@@ -135,8 +165,10 @@ main = do
     runUnitTests
 
     example <- readFile "../example.input"
-    expectEq (solveP1 example) 71 "example"
+    expectEq (solveP1 example) 71 "example p1"
+    expectEq (solveP2 example) 1 "example p2"
 
     batch <- readFile "../batch.input"
     print $ solveP1 batch
+    -- print $ solveP2 batch
     putStrLn "bye"
