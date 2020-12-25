@@ -1,6 +1,7 @@
-import Debug.Trace (trace)
+import Debug.Trace
 import Data.Maybe (fromJust, mapMaybe)
 import qualified Data.Map as Map
+import Data.Bifunctor (second)
 
 type Map = Map.Map
 
@@ -21,7 +22,8 @@ deleteBetween l r ranges = if l == r then ranges else case Map.lookupGT l ranges
 
 -- how about initializing ranges with (-inf, End), (+inf, Begin)? would simplify the logic a bit
 endpt lookTowards lookPast ind val ranges = maybe ind f (lookTowards ind ranges)
-    where f (k, v) | v == otherVal val && abs (k - ind) <= 1 = fst . fromJust $ lookPast k ranges
+    where f (k, v) | v == otherVal val = if abs (k - ind) <= 1 then fst . fromJust $ lookPast k ranges
+                                                               else ind
                    | otherwise = k 
 
 -- if single inRange .. then do nothing, otherwise add single .. easy ..
@@ -34,12 +36,17 @@ addRange begin end ranges =
         in Map.insert end' End $ Map.insert begin' Begin ranges'
 
 unionRanges :: Ranges -> Ranges -> Ranges
-unionRanges = Map.union
+unionRanges a b = foldr (uncurry addRange) a . halve $ Map.toList b
+    where halve [] = []
+          halve (a:b:lst) = (fst a, fst b) : halve lst
+          halve lst = error (show lst)
 
+-- TODO add unit tests for this ... even this was more complicated than I thought
 inRanges :: Int -> Ranges -> Bool
-inRanges x ranges = xSingle || (snd <$> left) == Just Begin
-    where xSingle = Map.member x ranges && ranges Map.! x == Single
-          left = Map.lookupLE x ranges
+inRanges x ranges = onRangeBorder || inRange
+    where onRangeBorder = Map.member x ranges
+          inRange = (snd <$> left) == Just Begin
+          left = Map.lookupLT x ranges
 
 makeRanges :: [(Int, Int)] -> Ranges
 makeRanges = foldr (uncurry addRange) Map.empty
@@ -50,32 +57,37 @@ type Ticket = [Int]
 parseContents :: String -> (Rules, Ticket, [Ticket])
 parseContents contents =
     let [rs, t, ts] = splitOn [] (lines contents)
-        in undefined
+        in (parseRules rs, parseTicket (head $ tail t), map parseTicket (tail ts))
+
+parseTicket :: String -> Ticket
+parseTicket = map read . splitOn ',' 
 
 splitOn :: Eq a => a -> [a] -> [[a]]
 splitOn c = filter (not . null) . uncurry (:) . foldr f ([], [])
     where f d (cur, res) = if c == d then ([], cur:res)
                                      else (d:cur, res)
 
-parseRules :: String -> [(String, [(Int, Int)])]
-parseRules = map parseLine . lines
+parseRules :: [String] -> Rules
+parseRules = Map.fromList . map parseLine
     where parseLine line = (name, ranges)
-              where ws = words line
-                    name = init $ head ws
-                    ranges = map ((\[a,b] -> (read a, read b)) . splitOn '-')
-                                 . filter (/= "or")
-                                 $ tail ws
+              where [name, rs] = splitOn ':' line
+                    ranges = makeRanges
+                        . map ((\[a,b] -> (read a, read b)) . splitOn '-')
+                        . filter (/= "or")
+                        $ words rs
 
 -- ticket is invalid for any possible range
-invalidTicket :: Ticket -> Ranges -> Maybe Ticket
-invalidTicket = undefined
+invalidTicket :: Ticket -> Ranges -> [Int]
+invalidTicket ts ranges = filter (\x -> not $ inRanges x ranges) ts
 
 -- compose the solution
 solveP1 :: String -> Int
 solveP1 contents =
     let (rules, _myTicket, nearbyTickets) = parseContents contents
         allRanges = foldr unionRanges Map.empty $ Map.elems rules
-        in sum . concat $ mapMaybe (`invalidTicket` allRanges) nearbyTickets
+        in sum
+            . concatMap (`invalidTicket` allRanges)
+            $ nearbyTickets
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
@@ -85,12 +97,6 @@ expectEq a b test = do
 
 runUnitTests :: IO ()
 runUnitTests = do
-    expectEq (makeRanges [(1, 10)])
-             (Map.insert 1 Begin $ Map.insert 10 End Map.empty)
-             "makeRanges w/ single range"
-    expectEq (deleteBetween 1 10 (makeRanges [(2, 3), (5, 7)]))
-             (makeRanges [])
-             "deleteBetween"
     expectEq (endpt Map.lookupLE Map.lookupLT 5 Begin (makeRanges [(2, 4)]))
              2
              "endpt diff by 1"
@@ -100,6 +106,18 @@ runUnitTests = do
     expectEq (endpt Map.lookupGE Map.lookupGT 4 End (makeRanges [(2, 8)]))
              8
              "endpt match end on end"
+    expectEq (endpt Map.lookupGE Map.lookupGT 5 End (makeRanges [(7, 8)]))
+             5
+             "endpt end finds begin further away than 1"
+    expectEq (makeRanges [(1, 10)])
+             (Map.insert 1 Begin $ Map.insert 10 End Map.empty)
+             "makeRanges w/ single range"
+    expectEq (makeRanges [(1, 3), (5, 7)])
+             (Map.fromList [(1, Begin), (3, End), (5, Begin), (7, End)])
+             "makeRanges w/ two ranges"
+    expectEq (deleteBetween 1 10 (makeRanges [(2, 3), (5, 7)]))
+             (makeRanges [])
+             "deleteBetween"
     -- TODO add test for singleNum ranges
     expectEq (makeRanges [(31, 60), (1, 30), (52, 59), (60, 100)])
              (makeRanges [(1, 100)])
@@ -107,8 +125,8 @@ runUnitTests = do
     expectEq (inRanges 5 (makeRanges [(1, 3), (3, 10)]))
              True
              "inRanges"
-    expectEq (parseRules "foo: 1-3 or 5-7\nbar: 6-11\n")
-             [ ("foo", [(1, 3), (5, 7)]) , ("bar", []) ]
+    expectEq (parseRules ["foo: 1-3 or 5-7", "bar: 6-11"])
+             (Map.fromList [("foo", makeRanges [(1, 3), (5, 7)]), ("bar", makeRanges [(6, 11)])])
              "parseRules"
 
 main :: IO ()
@@ -120,4 +138,5 @@ main = do
     expectEq (solveP1 example) 71 "example"
 
     batch <- readFile "../batch.input"
+    print $ solveP1 batch
     putStrLn "bye"
