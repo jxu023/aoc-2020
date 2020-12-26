@@ -45,7 +45,6 @@ unionRanges a b = foldr (uncurry addRange) a . halve $ Map.toList b
           halve (a:b:lst) = (fst a, fst b) : halve lst
           halve lst = error (show lst)
 
--- TODO add unit tests for this ... even this was more complicated than I thought
 inRanges :: Int -> Ranges -> Bool
 inRanges x ranges = onRangeBorder || inRange
     where onRangeBorder = Map.member x ranges
@@ -80,7 +79,6 @@ parseRules = Map.fromList . map parseLine
                         . filter (/= "or")
                         $ words rs
 
--- TODO why is p1 broken now? ... add more unit tests? .. ranges should be good..
 solveP1 :: String -> Int
 solveP1 contents =
     let (rules, _myTicket, nearbyTickets) = parseContents contents
@@ -97,7 +95,6 @@ findSingle elimd = fmap head . find isSingle
     where isSingle xs = case xs of [x] -> not (Set.member x elimd)
                                    _ -> False
 
--- TODO why is everything being eliminated?
 eliminatePossibs :: [[String]] -> State (Set.Set String) [[String]]
 eliminatePossibs strs = do
     elimd <- get
