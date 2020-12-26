@@ -108,7 +108,7 @@ eliminatePossibs strs = do
             eliminatePossibs (eliminate single strs)
 
 deduce :: [[String]] -> [[String]]
-deduce field = traceShow field $ evalState (eliminatePossibs field) Set.empty
+deduce field = evalState (eliminatePossibs field) Set.empty
 
 identifyFields :: Rules -> [Ticket] -> [String]
 identifyFields rules tickets =
@@ -128,7 +128,8 @@ solveP2 contents =
         allRanges = foldr unionRanges Map.empty $ Map.elems rules
         validTickets = filter (all (`inRanges` allRanges)) nearbyTickets
         departures = map fst
-            . filter ((`isInfixOf` "departure") . snd)
+            . filter (("departure" `isInfixOf`) . snd)
+            . (\x -> traceShow x x)
             . zip [0..]
             $ identifyFields rules validTickets
         in product . (\x -> traceShow x x) $ map (myTicket !!) departures
@@ -194,10 +195,10 @@ main = do
     runUnitTests
 
     example <- readFile "../example.input"
-    expectEq (solveP1 example) 71 "example p1"
+    -- expectEq (solveP1 example) 71 "example p1"
     expectEq (solveP2 example) 1 "example p2"
 
     batch <- readFile "../batch.input"
     print $ solveP1 batch
-    -- print $ solveP2 batch
+    print $ solveP2 batch
     putStrLn "bye"
