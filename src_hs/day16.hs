@@ -1,3 +1,4 @@
+import Control.Monad.State.Strict
 import Debug.Trace
 import Data.Maybe (fromJust, mapMaybe)
 import qualified Data.Map as Map
@@ -79,34 +80,47 @@ parseRules = Map.fromList . map parseLine
                         . filter (/= "or")
                         $ words rs
 
+-- TODO why is p1 broken now? ... add more unit tests? .. ranges should be good..
 solveP1 :: String -> Int
 solveP1 contents =
     let (rules, _myTicket, nearbyTickets) = parseContents contents
         allRanges = foldr unionRanges Map.empty $ Map.elems rules
         in sum . concatMap (filter (not . (`inRanges` allRanges))) $ nearbyTickets
 
--- ... do a top down skeleton development .. i forgot again
--- TODO use elimd as state during execution
-eliminatePossibs :: [[String]] -> [[String]]
-eliminatePossibs strs =
-    let eliminate str = map (addIfEmpty str . filter (/= str))
-        addIfEmpty str xs | null xs = [str]
+eliminate :: String -> [[String]] -> [[String]]
+eliminate str = map (addIfEmpty str . filter (/= str))
+    where addIfEmpty x xs | null xs = [x]
                           | otherwise = xs
-        findSingle elimd = fromJust . find (\xs -> case xs of (x:[]) -> not (Set.member x elimd); _ -> False)
-        elimSingle strs = flip eliminate strs . findSingle $ strs :: [[String]]
-        strs' = elimSingle strs :: [[String]]
-        in if strs' == strs then strs else eliminatePossibs strs'
+
+findSingle :: Set.Set String -> [[String]] -> Maybe String
+findSingle elimd = fmap head . find isSingle
+    where isSingle xs = case xs of [x] -> not (Set.member x elimd)
+                                   _ -> False
+
+-- TODO why is everything being eliminated?
+eliminatePossibs :: [[String]] -> State (Set.Set String) [[String]]
+eliminatePossibs strs = do
+    elimd <- get
+    case findSingle elimd strs of
+        Nothing -> return strs
+        Just single -> do
+            put (Set.insert single elimd)
+            eliminatePossibs (eliminate single strs)
+
+deduce :: [[String]] -> [[String]]
+deduce field = traceShow field $ evalState (eliminatePossibs field) Set.empty
 
 identifyFields :: Rules -> [Ticket] -> [String]
 identifyFields rules tickets =
     let grid = Array.listArray ((0, 0), (lastTicket, lastField)) (concat tickets)
         lastTicket = length tickets - 1
         lastField = length (head tickets) - 1
+
         findField :: Int -> [String]
         findField col = filter allValid (Map.keys rules)
             where allValid k = all (`inRanges` (rules Map.! k)) vals
                   vals = [grid Array.! (r, col) | r <- [0..lastTicket]]
-        in concat . eliminatePossibs $ map findField [0..lastField]
+        in map concat . deduce $ map findField [0..lastField]
 
 solveP2 :: String -> Int
 solveP2 contents =
@@ -117,7 +131,7 @@ solveP2 contents =
             . filter ((`isInfixOf` "departure") . snd)
             . zip [0..]
             $ identifyFields rules validTickets
-        in product $ map (myTicket !!) departures
+        in product . (\x -> traceShow x x) $ map (myTicket !!) departures
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
@@ -139,6 +153,7 @@ runUnitTests = do
     expectEq (endpt Map.lookupGE Map.lookupGT 5 End (makeRanges [(7, 8)]))
              5
              "endpt end finds begin further away than 1"
+
     expectEq (makeRanges [(1, 10)])
              (Map.insert 1 Begin $ Map.insert 10 End Map.empty)
              "makeRanges w/ single range"
@@ -148,6 +163,7 @@ runUnitTests = do
     expectEq (deleteBetween 1 10 (makeRanges [(2, 3), (5, 7)]))
              (makeRanges [])
              "deleteBetween"
+
     -- TODO add test for singleNum ranges
     expectEq (makeRanges [(31, 60), (1, 30), (52, 59), (60, 100)])
              (makeRanges [(1, 100)])
@@ -158,6 +174,19 @@ runUnitTests = do
     expectEq (parseRules ["foo: 1-3 or 5-7", "bar: 6-11"])
              (Map.fromList [("foo", makeRanges [(1, 3), (5, 7)]), ("bar", makeRanges [(6, 11)])])
              "parseRules"
+
+    expectEq (eliminate "a" [words "a b c", words "a d e f", words "a x y z", words "z"])
+             [words "b c", words "d e f", words "x y z", words "z"]
+             "eliminate a"
+    expectEq (findSingle (Set.fromList ["a"]) [words "a b c", ["b"], ["a"], words "c d"])
+             (Just "b")
+             "findSingle"
+    expectEq (deduce [words "a", words "a b", words "a b c"])
+             [words "a", words "b", words "c"]
+             "deduce"
+    expectEq (deduce [["row"],["class","row"],["class","row","seat"]])
+             [words "row", words "class", words "seat"]
+             "deduce row class seat"
 
 main :: IO ()
 main = do
