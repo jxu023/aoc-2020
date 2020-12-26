@@ -56,8 +56,11 @@ parsePocketDimension d = Set.fromList . map (++ replicate (d-2) 0) . snd . foldl
                                             | otherwise = ([x, y], activeCoords)
 
 -- Read initial state, simulate 6 cycles, return # of active cubes
-solveP1 :: String -> Int
-solveP1 = Set.size . (!! 6) . iterate stepOneCycle . parsePocketDimension 3
+solve :: Int -> String -> Int
+solve d = Set.size . (!! 6) . iterate stepOneCycle . parsePocketDimension d
+
+solveP1 = solve 3
+solveP2 = solve 4
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
@@ -92,4 +95,6 @@ main = do
     runUnitTests
     expectEq (solveP1 example) 112 "p1 example"
     print $ solveP1 batch
+    print $ solveP2 example
+    print $ solveP2 batch
     putStrLn "bye"
