@@ -5,18 +5,23 @@ import Debug.Trace
 import Data.Maybe (catMaybes)
 
 -- Coordinate to locate a cube in a pocket dimension
-type Coord = (Int, Int, Int)
+type Coord = [Int]
 -- Set of Coords of Activated Cubes
 type PocketDimension = Set.Set Coord
 
 -- given a coord
--- return its 26 neighbor coords
+-- return its 26 neighbor coords for 3-dim and 80 neighbor coords for 4-dim
 neighborCoords :: Coord -> [Coord]
-neighborCoords c = filter (/= c) [addCoord c (x, y, z) | x <- diffs, y <- diffs, z <- diffs]
-    where diffs = [(-1)..1]
+neighborCoords c = filter (/= c) . map (addCoord c) $ enumerate dim
+    where diffs = [-1,0,1]
+          dim = length c
+          enumerate :: Int -> [Coord]
+          enumerate d | d == 1 = map (:[]) diffs
+                      | otherwise = concat [map (diff:) child | diff <- diffs]
+              where child = enumerate (d-1)
 
 addCoord :: Coord -> Coord -> Coord
-addCoord (a,b,c) (d,e,f) = (a+d,b+e,c+f)
+addCoord = zipWith (+)
 
 -- counts the number of active neighbors of a coord in the pocket dimenion
 numActiveNeighbors :: Coord -> PocketDimension -> Int
@@ -39,19 +44,20 @@ stepOneCycle pd = Set.fromList . catMaybes $ map (deactivate pd) activeCoords ++
     where activeCoords = Set.elems pd :: [Coord]
           inactiveCoords = Set.toList . Set.fromList $ concatMap neighborCoords activeCoords :: [Coord]
 
--- read a 2d grid, set (x, y, 0) to init a Set of Coords for locs w/ '#'
+-- read a 2d grid, and initialize a set of multi-dimensional coordinates
 -- track current coordinate while iter'ing over all vals
-parsePocketDimension :: String -> PocketDimension
-parsePocketDimension = snd . foldl' addCoord ((0, 0, 0), Set.empty)
-    where addCoord ((x, y, _), activeCoords) c | traceShow (c, (x, y)) False = undefined
-                                               | c == '\n' = ((x+1, 0, 0), activeCoords)
-                                               | c == '#' || c == '.' = ((x, y+1, 0), if c == '#' then Set.insert (x, y, 0) activeCoords
-                                                                                                  else activeCoords)
-                                               | otherwise = ((x, y, 0), activeCoords)
+parsePocketDimension :: Int -> String -> PocketDimension
+parsePocketDimension d = Set.fromList . map (++ replicate (d-2) 0) . snd . foldl' addCoord ([0, 0], [])
+    where addCoord :: (Coord, [Coord]) -> Char -> (Coord, [Coord])
+          addCoord ([x, y], activeCoords) c | traceShow (c, (x, y)) False = undefined
+                                            | c == '\n' = ([x+1, 0], activeCoords)
+                                            | c == '#' || c == '.' = ([x, y+1], if c == '#' then [x, y]:activeCoords
+                                                                                               else activeCoords)
+                                            | otherwise = ([x, y], activeCoords)
 
 -- Read initial state, simulate 6 cycles, return # of active cubes
 solveP1 :: String -> Int
-solveP1 = Set.size . (!! 6) . iterate stepOneCycle . parsePocketDimension
+solveP1 = Set.size . (!! 6) . iterate stepOneCycle . parsePocketDimension 3
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
@@ -62,14 +68,14 @@ expectEq a b test = do
 runUnitTests :: IO ()
 runUnitTests = do
     example <- readFile "../example.input"
-    let examplePocketDimension = parsePocketDimension example
-    expectEq examplePocketDimension 
-             (Set.fromList [(0,1,0), (1,2,0), (2,0,0), (2,1,0), (2,2,0)])
+    let examplePocketDimension = parsePocketDimension 3 example
+    expectEq examplePocketDimension
+             (Set.fromList [[0,1,0], [1,2,0], [2,0,0], [2,1,0], [2,2,0]])
              "parsePocketDimension example"
 
-    expectEq (length $ neighborCoords (0, 0, 0)) 26 "neighborCoords has 26"
-    expectEq (neighborCoords (0, 0, 0))
-             [(-1,-1,-1),(-1,-1,0),(-1,-1,1),(-1,0,-1),(-1,0,0),(-1,0,1),(-1,1,-1),(-1,1,0),(-1,1,1),(0,-1,-1),(0,-1,0),(0,-1,1),(0,0,-1),(0,0,1),(0,1,-1),(0,1,0),(0,1,1),(1,-1,-1),(1,-1,0),(1,-1,1),(1,0,-1),(1,0,0),(1,0,1),(1,1,-1),(1,1,0),(1,1,1)]
+    expectEq (length $ neighborCoords [0, 0, 0]) 26 "neighborCoords has 26"
+    expectEq (neighborCoords [0, 0, 0])
+             [[-1,-1,-1],[-1,-1,0],[-1,-1,1],[-1,0,-1],[-1,0,0],[-1,0,1],[-1,1,-1],[-1,1,0],[-1,1,1],[0,-1,-1],[0,-1,0],[0,-1,1],[0,0,-1],[0,0,1],[0,1,-1],[0,1,0],[0,1,1],[1,-1,-1],[1,-1,0],[1,-1,1],[1,0,-1],[1,0,0],[1,0,1],[1,1,-1],[1,1,0],[1,1,1]]
              "neighbordCoord values"
 
     -- This is a wrong unit test, the lesson here is to copy paste the input and then parse it instead of transcribing coords.
