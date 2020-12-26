@@ -1,7 +1,8 @@
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Foldable (foldl')
-import Debug.Trace (trace)
+import Debug.Trace
+import Data.Maybe (catMaybes)
 
 -- Coordinate to locate a cube in a pocket dimension
 type Coord = (Int, Int, Int)
@@ -18,21 +19,26 @@ numActiveNeighbors :: Coord -> PocketDimension -> Int
 numActiveNeighbors = undefined
 
 -- Given an *inactive* coord, attempt to activate it
-activate :: PocketDimension -> Coord -> Coord
+-- return Nothing if coord stays inactive, otherwise coord
+activate :: PocketDimension -> Coord -> Maybe Coord
 activate = undefined
 
 -- Given an *active* coord, attempt to deactivate it
-deactivate :: PocketDimension -> Coord -> Coord
+-- return Nothing if coord becomes inactive, otherwise coord
+deactivate :: PocketDimension -> Coord -> Maybe Coord
 deactivate = undefined
 
 stepOneCycle :: PocketDimension -> PocketDimension
-stepOneCycle pd = Set.fromList $ map activate activeCoords ++ map deactivate inactiveCoords
+stepOneCycle pd = Set.fromList . catMaybes $ map (activate pd) activeCoords ++ map (deactivate pd) inactiveCoords
     where activeCoords = Set.elems pd :: [Coord]
-          inactiveCoords = Set.toList . Set.fromList $ map neighborCoords activeCoords :: [Coord]
+          inactiveCoords = Set.toList . Set.fromList $ concatMap neighborCoords activeCoords :: [Coord]
+
+parsePocketDimension :: String -> PocketDimension
+parsePocketDimension = undefined
 
 -- Read initial state, simulate 6 cycles, return # of active cubes
 solveP1 :: String -> Int
-solveP1 = undefined
+solveP1 = Set.size . (!! 6) . iterate stepOneCycle . parsePocketDimension
 
 main :: IO()
 main = do

@@ -1,6 +1,6 @@
 import qualified Data.Map as Map
 import Data.Foldable (foldl')
-import Debug.Trace (trace)
+import Debug.Trace
 
 type Map = Map.Map
 
