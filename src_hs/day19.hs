@@ -23,22 +23,18 @@ afterPrefix a abc = if a == take n abc then Just (drop n abc)
 
 -- top down parsing
 -- given rules and a string to match, it'll return a list of remainders
--- where the remainders are the suffixes left after it matched on the prefixes
+-- where the remainders are the suffixes left after it matched on the rule/subrules as prefixes
 matchString :: Rules -> String -> Bool
 matchString rules = any null . match 0
     where match :: Int -> String -> [String]
           match _root [] = []
           match root str = case rules Map.! root of
               Terminal s -> maybeToList (afterPrefix s str)
-              -- case afterPrefix s str of Just s -> [s]
-              --                                         Nothing -> []
-              Node children -> if null matches then []
-                                               else matches
-                  where matches = concatMap (matchOrd str) children
-                        matchOrd :: String -> [Int] -> [String]
+              Node children -> concatMap (matchOrd str) children
+                  where matchOrd :: String -> [Int] -> [String]
                         matchOrd s [] = [s]
                         matchOrd s (x:xs) = match x s >>= flip matchOrd xs
-                        
+
 parseRules :: [String] -> Rules
 parseRules = Map.fromList . map parseLine
     where parseLine :: String -> (Int, Rule)
