@@ -2,7 +2,7 @@ import Data.Foldable (foldl')
 import Debug.Trace
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, maybeToList)
 import Control.Monad (foldM)
 
 -- a rule is either a terminal String or a list of matches where each match is an ordering of rules
@@ -24,19 +24,19 @@ afterPrefix a abc = if a == take n abc then Just (drop n abc)
 -- top down parsing
 -- given rules and a string to match, it'll return a list of remainders
 -- where the remainders are the suffixes left after it matched on the prefixes
---
--- this function assumes that matches are un-ambiguous
 matchString :: Rules -> String -> Bool
 matchString rules = any null . match 0
-    where match :: Int -> String -> Maybe String
-          match _root [] = Nothing
+    where match :: Int -> String -> [String]
+          match _root [] = []
           match root str = case rules Map.! root of
-              Terminal s -> afterPrefix s str
-              Node children -> if null matches then Nothing
-                                               else Just $ head matches
-                  where matches = mapMaybe (matchOrd str) children 
-                        matchOrd :: String -> [Int] -> Maybe String
-                        matchOrd s [] = Just s
+              Terminal s -> maybeToList (afterPrefix s str)
+              -- case afterPrefix s str of Just s -> [s]
+              --                                         Nothing -> []
+              Node children -> if null matches then []
+                                               else matches
+                  where matches = concatMap (matchOrd str) children
+                        matchOrd :: String -> [Int] -> [String]
+                        matchOrd s [] = [s]
                         matchOrd s (x:xs) = match x s >>= flip matchOrd xs
                         
 parseRules :: [String] -> Rules
@@ -87,4 +87,5 @@ main = do
 
     example2 <- readFile "../example2.input"
     expectEq (solveP2 example2) 12 "solve p2 example"
+    putStrLn $ "p2 has answer " ++ show (solveP2 batch)
     putStrLn "bye"
