@@ -3,11 +3,10 @@ import qualified Data.Array as A
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
+import qualified Data.Bifunctor as Bi
 
 solveP1 :: String -> Int
 solveP1 = product . corners . initEdges . parseTiles . T.pack
--- meanwhile back in javaland ...
--- int answer = product(corners(initEdges(parseTiles(pack(string)))));
 
 type TileId = Int
 type Tile = A.Array (Int, Int) Char
@@ -32,7 +31,7 @@ type Border = String
 type Edges = M.Map Border [TileId]
 
 initEdges :: [(TileId, Tile)] -> Edges
-initEdges = foldIntoMap . concatMap toBorders
+initEdges = foldIntoMap . addReversedEdges . concatMap toBorders
 
   where toBorders :: (TileId, Tile) -> [(Border, TileId)]
         toBorders (id, tile) = zip borders (repeat id)
@@ -43,19 +42,25 @@ initEdges = foldIntoMap . concatMap toBorders
                                         , ((0, lastY), (0, 0))
                                         ]
                   where getBorder ((startX, startY), (endX, endY))
-                          = [tile A.! ind | ind <- zip [startX..endX] [startY..endY]]
+                          = [tile A.! ind | ind <- zip (range startX endX) (range startY endY)]
+                        range a b | a == b = repeat a
+                                  | a < b = [a..b]
+                                  | otherwise = [a,(a-1)..b]
                         (_, (lastX, lastY)) = A.bounds tile
+
+        addReversedEdges :: [(Border, TileId)] -> [(Border, TileId)]
+        addReversedEdges xs = map (Bi.first reverse) xs ++ xs
 
         foldIntoMap :: [(Border, TileId)] -> Edges
         foldIntoMap = foldr addBorder M.empty
 
           where addBorder :: (Border, TileId) -> Edges -> Edges
-                addBorder (border, id) edges = case M.lookup border edges of
-                  Just ids -> M.insert border (id:ids) edges
-                  Nothing  -> M.insert border [id] edges
+                addBorder (border, id) edges = M.insert border ids' edges
+                  where ids' = case M.lookup border edges of Just ids -> id : ids
+                                                             Nothing  -> [id]
 
 corners :: Edges -> [TileId]
-corners = extractCorners . (\x -> traceShow x x) . countTileIds . filter borderIsShared . M.assocs
+corners = traceShowId . extractCorners . traceShowId . countTileIds . filter borderIsShared . M.assocs
   where borderIsShared :: (Border, [TileId]) -> Bool
         borderIsShared (_, ids) = length ids > 1
 
@@ -68,9 +73,9 @@ corners = extractCorners . (\x -> traceShow x x) . countTileIds . filter borderI
                   Nothing        -> M.insert id 1 counts
 
         extractCorners :: M.Map TileId Int -> [TileId]
-        extractCorners = map snd . filter has2Neighbors . M.assocs
+        extractCorners = map fst . filter has2Neighbors . M.assocs
           where has2Neighbors :: (TileId, Int) -> Bool
-                has2Neighbors (_, count) = count == 2
+                has2Neighbors (_, count) = count == 4
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
@@ -84,4 +89,5 @@ main = do
   example <- readFile "../example.input"
   expectEq (solveP1 example) 20899048083289 "p1 example"
   batch <- readFile "../batch.input"
+  print $ solveP1 batch
   putStrLn "bye"
