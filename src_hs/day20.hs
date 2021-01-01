@@ -1,71 +1,87 @@
-import qualified Data.Map as Map
-import Data.Foldable (foldl')
 import Debug.Trace
+import qualified Data.Array as A
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
 
-type Map = Map.Map
+solveP1 :: String -> Int
+solveP1 = product . corners . initEdges . parseTiles . T.pack
+-- meanwhile back in javaland ...
+-- int answer = product(corners(initEdges(parseTiles(pack(string)))));
 
+type TileId = Int
+type Tile = A.Array (Int, Int) Char
 
--- start with a single tile t at coord 0 0
--- for each remaining tile t'
---    attempt to attach it to t, on each of the 4 sides, and with each orientation (flip)
---          8 tries specifying orientation and flip
---          note: each flip needs only to match on the border, perhaps laziness will omit the non-border rotations for you?
+parseTiles :: T.Text -> [(TileId, Tile)]
+parseTiles = map parseTile . separateTiles
 
--- when we find a match, we need to merge the tiles
--- maintain a list of borders identified by (Coord, Side) where Coord is a length 2 vector or tuple, side is Up/Left/Down/Right
+  where separateTiles :: T.Text -> [T.Text]
+        separateTiles = T.splitOn (T.pack "\n\n")
 
--- maintain set of borders (matched tiles), iterate over each ... remaining tile (unmatched tiles) attempting to merge it in to borders
---
--- hypothetically we don't need to model the coordinate system either
--- what if we could just view this as a graph problem with edges connecting via matched borders?
---
--- this is like an n^2 * log(n) solution where n is # of tiles
+        parseTile :: T.Text -> (TileId, Tile)
+        parseTile txt = (id, tile)
 
+          where idStr : rows = T.lines txt
+                id = read . T.unpack . T.init . (!! 1) . T.words $ idStr
+                tile = A.listArray ((0, 0), (m-1, n-1)) (T.unpack $ T.concat rows)
 
--- or how about we initialize a Map from Border to [Tile] matching that border?
---      each border has only 2 orderings (forwards, backwards)
---
---      we still need to pick one tile as "root" to initialize this Map.
---      every other tile will follow this tile's orientation
---
---      **the end result would then be flipped or rotated according to the initial state of our root tile**
---
---      ****let's initialize the map s.t. the root tile has only 4 borders
---         **** each other tile element will have 8 borders mapping to it
---
--- we could even validate that the borders are all unique
---
--- **all tiles must match on at least two borders given its arrangement into a square**
---
--- Then we could construct the arrangement from the Map
---      to do so we'd simply pick any tile as the "root", and then branch out to borders which match it
---
--- initializing the map will take O(n * log(n)) time (using balanced BST to impl map)
---
--- traversing the map while constructing the grid should take another O(n) * log(n) time
---      O(n) since one iteration for each tiles
---          log(n) for accesses to DS and for construction of set of borders
---
---  we also need to maintain an intermediate DS of list of borders to match on (root will grow as a set of borders)
---  could use state to track it.
---  
---
---  we could/should turn the map into an array at the end perhaps
---  we should also print out the final map flipped a few times
---
---  constructGrid :: Map Border [TileId] -> State [(Border, TileId)] -> Map (Int, Int) (TileId)
+                  where m = length rows
+                        n = T.length (head rows)
 
--- Note: Wow, writing stuff out really helps a lot with the problem solving process
+type Border = String
+type Edges = M.Map Border [TileId]
+
+initEdges :: [(TileId, Tile)] -> Edges
+initEdges = foldIntoMap . concatMap toBorders
+
+  where toBorders :: (TileId, Tile) -> [(Border, TileId)]
+        toBorders (id, tile) = zip borders (repeat id)
+
+          where borders = map getBorder [ ((0, 0), (lastX,0))
+                                        , ((lastX, 0), (lastX, lastY))
+                                        , ((lastX, lastY), (0, lastY))
+                                        , ((0, lastY), (0, 0))
+                                        ]
+                  where getBorder ((startX, startY), (endX, endY))
+                          = [tile A.! ind | ind <- zip [startX..endX] [startY..endY]]
+                        (_, (lastX, lastY)) = A.bounds tile
+
+        foldIntoMap :: [(Border, TileId)] -> Edges
+        foldIntoMap = foldr addBorder M.empty
+
+          where addBorder :: (Border, TileId) -> Edges -> Edges
+                addBorder (border, id) edges = case M.lookup border edges of
+                  Just ids -> M.insert border (id:ids) edges
+                  Nothing  -> M.insert border [id] edges
+
+corners :: Edges -> [TileId]
+corners = extractCorners . (\x -> traceShow x x) . countTileIds . filter borderIsShared . M.assocs
+  where borderIsShared :: (Border, [TileId]) -> Bool
+        borderIsShared (_, ids) = length ids > 1
+
+        countTileIds :: [(Border, [TileId])] -> M.Map TileId Int
+        countTileIds = foldr addId M.empty . concatMap snd
+
+          where addId :: TileId -> M.Map TileId Int -> M.Map TileId Int
+                addId id counts = case M.lookup id counts of
+                  Just prevCount -> M.insert id (prevCount + 1) counts
+                  Nothing        -> M.insert id 1 counts
+
+        extractCorners :: M.Map TileId Int -> [TileId]
+        extractCorners = map snd . filter has2Neighbors . M.assocs
+          where has2Neighbors :: (TileId, Int) -> Bool
+                has2Neighbors (_, count) = count == 2
 
 expectEq :: (Eq a, Show a) => a -> a -> String -> IO ()
 expectEq a b test = do
-    if a /= b then putStrLn $ "FAILED " ++ test++ "\nresult: " ++ show a ++ "\nexpected: " ++ show b
-              else putStrLn $ "PASS " ++ test
-    putStrLn ""
+  if a /= b then putStrLn $ "FAILED " ++ test++ "\nresult: " ++ show a ++ "\nexpected: " ++ show b
+            else putStrLn $ "PASS " ++ test
+  putStrLn ""
 
 main :: IO()
 main = do
-    putStrLn "hi"
-    example <- readFile "../example.input"
-    batch <- readFile "../batch.input"
-    putStrLn "bye"
+  putStrLn "hi"
+  example <- readFile "../example.input"
+  expectEq (solveP1 example) 20899048083289 "p1 example"
+  batch <- readFile "../batch.input"
+  putStrLn "bye"
